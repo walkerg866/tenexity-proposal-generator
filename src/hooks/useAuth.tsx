@@ -23,7 +23,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         supabase.auth.getSession().then(({ data: { session } }) => {
             setSession(session)
             if (session?.user) {
-                fetchUserProfile(session.user.id)
+                fetchUserProfile(session)
             } else {
                 setLoading(false)
             }
@@ -33,7 +33,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
             setSession(session)
             if (session?.user) {
-                fetchUserProfile(session.user.id)
+                setLoading(true)
+                fetchUserProfile(session)
             } else {
                 setUser(null)
                 setLoading(false)
@@ -43,15 +44,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return () => subscription.unsubscribe()
     }, [])
 
-    async function fetchUserProfile(userId: string) {
+    async function fetchUserProfile(session: Session) {
+        const { user: authUser } = session
         const { data, error } = await supabase
             .from('users')
             .select('*')
-            .eq('id', userId)
+            .eq('id', authUser.id)
             .single()
 
         if (data && !error) {
             setUser(data)
+        } else if (error && error.code === 'PGRST116') {
+            // User profile doesn't exist, create it
+            const newUser: User = {
+                id: authUser.id,
+                email: authUser.email!,
+                name: authUser.user_metadata?.full_name || authUser.email?.split('@')[0] || 'User',
+            }
+
+            const { data: createdUser, error: insertError } = await supabase
+                .from('users')
+                .insert(newUser)
+                .select()
+                .single()
+
+            if (createdUser && !insertError) {
+                setUser(createdUser)
+            } else {
+                console.error('Error creating user profile:', insertError)
+                setUser(null)
+            }
+        } else {
+            console.error('Error fetching user profile:', error)
+            setUser(null)
         }
         setLoading(false)
     }
