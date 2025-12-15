@@ -9,7 +9,7 @@ export default function LoginPage() {
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [loading, setLoading] = useState(false)
-    const { signIn } = useAuth()
+    const { signIn, authError } = useAuth()
     const navigate = useNavigate()
 
     async function handleSubmit(e: FormEvent) {
@@ -36,6 +36,14 @@ export default function LoginPage() {
                         <h1 className="text-3xl font-bold text-blue-600">Tenexity</h1>
                         <p className="text-gray-500 mt-2">Proposal Generator</p>
                     </div>
+
+                    {/* Error Alert */}
+                    {authError && (
+                        <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative" role="alert">
+                            <strong className="font-bold">Login Error: </strong>
+                            <span className="block sm:inline">{authError}</span>
+                        </div>
+                    )}
 
                     {/* Form */}
                     <form onSubmit={handleSubmit} className="space-y-5">

@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { toast } from 'sonner'
 import { type Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 import type { User } from '../types'
@@ -7,6 +8,7 @@ interface AuthContextType {
     user: User | null
     session: Session | null
     loading: boolean
+    authError: string | null
     signIn: (email: string, password: string) => Promise<{ error?: string }>
     signOut: () => Promise<void>
 }
@@ -17,6 +19,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<User | null>(null)
     const [session, setSession] = useState<Session | null>(null)
     const [loading, setLoading] = useState(true)
+    const [authError, setAuthError] = useState<string | null>(null)
 
     useEffect(() => {
         // Get initial session
@@ -72,18 +75,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 setUser(createdUser)
             } else {
                 console.error('Error creating user profile:', insertError)
+                const msg = 'Error creating profile: ' + insertError?.message
+                toast.error(msg)
+                setAuthError(msg)
                 setUser(null)
             }
         } else {
             console.error('Error fetching user profile:', error)
+            const msg = 'Error fetching profile: ' + error?.message
+            toast.error(msg)
+            setAuthError(msg)
             setUser(null)
         }
         setLoading(false)
     }
 
     async function signIn(email: string, password: string) {
+        setLoading(true)
         const { error } = await supabase.auth.signInWithPassword({ email, password })
         if (error) {
+            setLoading(false)
             return { error: error.message }
         }
         return {}
@@ -96,7 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     return (
-        <AuthContext.Provider value={{ user, session, loading, signIn, signOut }}>
+        <AuthContext.Provider value={{ user, session, loading, authError, signIn, signOut }}>
             {children}
         </AuthContext.Provider>
     )
